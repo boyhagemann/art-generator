@@ -35,32 +35,36 @@ Route::get('image', function() {
 
     /** @var Intervention\Image\Image $img */
     $img = Image::make($file);
-    var_dump($img->pickColor(0,0, 'hex'));
 
-    $width = 10;
-    $height = 10;
-    $img->resize($width,$height);
+    $width = 5;
+    $height = 5;
 
+    $offset = 10;
 
+    $img->resize($width, $height);
 
+    foreach(range(0, $width - 1) as $x) {
+        foreach(range(0, $height - 1) as $y) {
 
-    dd($img->pickColor(0,0, 'hex'));
+            // Get the brightness from the pixel
+            $rgb = $img->pickColor($x, $y, 'array');
+            $brightness = \App\Helpers\Color::brightness($rgb);
+
+            // Build a query to search for blocks within this brightness range
+            $q = App\Block::whereBetween('brightness', [$brightness - $offset, $brightness + $offset]);
+
+            // Use the difference in brightness for sorting
+            $abs = sprintf('ABS(brightness - %s)', $brightness);
+            $raw = DB::raw($abs);
+            $q->select(['*', $raw]);
+            $q->orderBy($raw);
+
+            // Get the most resembling block
+            $block = $q->first();
+
+            $colors[] = $brightness . ' - ' . ($block ? $block->brightness : '...');
+        }
+    }
+
+    return $colors;
 });
-
-
-/**
- *
-s	small square 75x75
-q	large square 150x150
-t	thumbnail, 100 on longest side
-m	small, 240 on longest side
-n	small, 320 on longest side
--	medium, 500 on longest side
-z	medium 640, 640 on longest side
-c	medium 800, 800 on longest side†
-b	large, 1024 on longest side*
-h	large 1600, 1600 on longest side†
-k	large 2048, 2048 on longest side†
-o	original image, either a jpg, gif or png, depending on source format
-
- */
